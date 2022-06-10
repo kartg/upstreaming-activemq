@@ -33,6 +33,7 @@ import org.apache.activemq.command.BrokerId;
 import org.apache.activemq.command.BrokerInfo;
 import org.apache.activemq.command.ConnectionInfo;
 import org.apache.activemq.command.DestinationInfo;
+import org.apache.activemq.command.MessageAck;
 import org.apache.activemq.command.MessageDispatch;
 import org.apache.activemq.command.ProducerInfo;
 import org.apache.activemq.command.SessionInfo;
@@ -415,4 +416,6 @@ public interface Broker extends Region, Service {
 
     void queuePurged(ConnectionContext context, ActiveMQDestination destination);
     void queueMessageDropped(ConnectionContext context, QueueMessageReference reference);
+
+    void topicMessageAcknowledged(ConnectionContext context, Subscription sub, MessageAck ack, MessageReference node);
 }
