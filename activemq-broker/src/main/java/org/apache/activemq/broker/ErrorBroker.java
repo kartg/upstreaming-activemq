@@ -24,7 +24,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 import org.apache.activemq.broker.region.Destination;
 import org.apache.activemq.broker.region.MessageReference;
-import org.apache.activemq.broker.region.QueueMessageReference;
 import org.apache.activemq.broker.region.Subscription;
 import org.apache.activemq.broker.region.virtual.VirtualDestination;
 import org.apache.activemq.command.ActiveMQDestination;
@@ -414,16 +413,6 @@ public class ErrorBroker implements Broker {
 
     @Override
     public void queuePurged(ConnectionContext context, ActiveMQDestination destination) {
-        throw new BrokerStoppedException(this.message);
-    }
-
-    @Override
-    public void queueMessageDropped(ConnectionContext context, QueueMessageReference reference) {
-        throw new BrokerStoppedException(this.message);
-    }
-
-    @Override
-    public void topicMessageAcknowledged(ConnectionContext context, Subscription sub, MessageAck ack, MessageReference node) {
         throw new BrokerStoppedException(this.message);
     }
 }

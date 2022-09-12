@@ -1401,19 +1401,9 @@ public class Queue extends BaseDestination implements Task, UsageListener, Index
      * @return the number of messages removed
      */
     public int removeMatchingMessages(MessageReferenceFilter filter, int maximumMessages) throws Exception {
-        return removeMatchingMessages(null, filter, maximumMessages);
-    }
-
-    /**
-     * Removes the messages matching the given filter up to the maximum number
-     * of matched messages
-     *
-     * @return the number of messages removed
-     */
-    public int removeMatchingMessages(ConnectionContext c, MessageReferenceFilter filter, int maximumMessages) throws Exception {
         int movedCounter = 0;
         Set<MessageReference> set = new LinkedHashSet<MessageReference>();
-        ConnectionContext context = c != null ? c : createConnectionContext();
+        ConnectionContext context = createConnectionContext();
         do {
             doPageIn(true);
             pagedInMessagesLock.readLock().lock();
@@ -1937,7 +1927,7 @@ public class Queue extends BaseDestination implements Task, UsageListener, Index
         // This sends the ack the the journal..
         if (!ack.isInTransaction()) {
             acknowledge(context, sub, ack, reference);
-            dropMessage(context, reference);
+            dropMessage(reference);
         } else {
             try {
                 acknowledge(context, sub, ack, reference);
@@ -1946,7 +1936,7 @@ public class Queue extends BaseDestination implements Task, UsageListener, Index
 
                     @Override
                     public void afterCommit() throws Exception {
-                        dropMessage(context, reference);
+                        dropMessage(reference);
                         wakeup();
                     }
 
@@ -1974,7 +1964,7 @@ public class Queue extends BaseDestination implements Task, UsageListener, Index
         reference.setAcked(true);
     }
 
-    private void dropMessage(ConnectionContext context, QueueMessageReference reference) {
+    private void dropMessage(QueueMessageReference reference) {
         //use dropIfLive so we only process the statistics at most one time
         if (reference.dropIfLive()) {
             getDestinationStatistics().getDequeues().increment();
@@ -1986,7 +1976,6 @@ public class Queue extends BaseDestination implements Task, UsageListener, Index
                 pagedInMessagesLock.writeLock().unlock();
             }
         }
-        broker.queueMessageDropped(context, reference);
     }
 
     public void messageExpired(ConnectionContext context, MessageReference reference) {
@@ -2180,7 +2169,7 @@ public class Queue extends BaseDestination implements Task, UsageListener, Index
                             LOG.warn("{}, duplicate message {} - {} from cursor, is cursor audit disabled or too constrained? Redirecting to dlq", this, ref.getMessageId(), ref.getMessage().getMessageId().getFutureOrSequenceLong());
                             if (store != null) {
                                 ConnectionContext connectionContext = createConnectionContext();
-                                dropMessage(connectionContext, ref);
+                                dropMessage(ref);
                                 if (gotToTheStore(ref.getMessage())) {
                                     LOG.debug("Duplicate message {} from cursor, removing from store", ref.getMessage());
                                     store.removeMessage(connectionContext, new MessageAck(ref.getMessage(), MessageAck.POISON_ACK_TYPE, 1));
@@ -2491,26 +2480,33 @@ public class Queue extends BaseDestination implements Task, UsageListener, Index
         QueueMessageReference message = null;
         MessageId messageId = messageDispatchNotification.getMessageId();
 
-        int size = 0;
+        long totalCount = 0;
         do {
-            doPageIn(true, false, getMaxPageSize());
+            doPageIn(true);
             pagedInMessagesLock.readLock().lock();
+            List<MessageReference> list = new ArrayList<>();
             try {
-                if (pagedInMessages.size() == size) {
+                if (!list.addAll(pagedInMessages.values())) {
                     // nothing new to check - mem constraint on page in
                     break;
-                }
-                size = pagedInMessages.size();
-                for (MessageReference ref : pagedInMessages) {
-                    if (ref.getMessageId().equals(messageId)) {
-                        message = (QueueMessageReference) ref;
-                        break;
-                    }
-                }
+                };
             } finally {
                 pagedInMessagesLock.readLock().unlock();
             }
-        } while (size < this.destinationStatistics.getMessages().getCount());
+            totalCount += list.size();
+            for (MessageReference ref : list) {
+                if (messageId.equals(ref.getMessageId())) {
+                    message = (QueueMessageReference)ref;
+                    pagedInPendingDispatchLock.writeLock().lock();
+                    try {
+                        dispatchPendingList.remove(ref);
+                    } finally {
+                        pagedInPendingDispatchLock.writeLock().unlock();
+                    }
+                    break;
+                }
+            }
+        } while (totalCount < this.destinationStatistics.getMessages().getCount());
 
         if (message == null) {
             throw new JMSException("Slave broker out of sync with master - Message: "

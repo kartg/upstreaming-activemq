@@ -23,7 +23,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 import org.apache.activemq.broker.region.Destination;
 import org.apache.activemq.broker.region.MessageReference;
-import org.apache.activemq.broker.region.QueueMessageReference;
 import org.apache.activemq.broker.region.Subscription;
 import org.apache.activemq.broker.region.virtual.VirtualDestination;
 import org.apache.activemq.command.ActiveMQDestination;
@@ -418,15 +417,5 @@ public class BrokerFilter implements Broker {
     @Override
     public void queuePurged(ConnectionContext context, ActiveMQDestination destination) {
         getNext().queuePurged(context, destination);
-    }
-
-    @Override
-    public void queueMessageDropped(ConnectionContext context, QueueMessageReference reference) {
-        getNext().queueMessageDropped(context, reference);
-    }
-
-    @Override
-    public void topicMessageAcknowledged(ConnectionContext context, Subscription sub, MessageAck ack, MessageReference node) {
-        getNext().topicMessageAcknowledged(context, sub, ack, node);
     }
 }
