@@ -1303,6 +1303,30 @@ public class Queue extends BaseDestination implements Task, UsageListener, Index
         return null;
     }
 
+    public List<MessageId> getAllMessageIds() throws Exception {
+        Set<MessageReference> set = new LinkedHashSet<>();
+        do {
+            doPageIn(true);
+            pagedInMessagesLock.readLock().lock();
+            try {
+                if (!set.addAll(pagedInMessages.values())) {
+                    // nothing new to check - mem constraint on page in
+                    return getPagedInMessageIds();
+                }
+            } finally {
+                pagedInMessagesLock.readLock().unlock();
+            }
+        } while (set.size() < this.destinationStatistics.getMessages().getCount());
+        return getPagedInMessageIds();
+    }
+
+    private List<MessageId> getPagedInMessageIds() {
+        return pagedInMessages.values()
+                .stream()
+                .map(MessageReference::getMessageId)
+                .collect(Collectors.toList());
+    }
+
     public void purge() throws Exception {
         purge(createConnectionContext());
     }
