@@ -130,4 +130,9 @@ class DummyConnection implements Connection {
     @Override
     public void stop() throws Exception {
     }
+
+    @Override
+    public Long getConnectedTimestamp() {
+        return null;
+    }
 }
