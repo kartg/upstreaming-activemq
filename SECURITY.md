@@ -6,7 +6,8 @@
 | ------- | ------------------ |
 | 5.18.x   | :white_check_mark: |
 | 5.17.x   | :white_check_mark: |
-| <= 5.16.x | :x:                |
+| 5.16.x   | :white_check_mark: |
+| <= 5.15.x | :x:                |
 
 ## Reporting a Vulnerability
 
